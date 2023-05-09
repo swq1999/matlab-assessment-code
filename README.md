@@ -13,4 +13,4 @@ MATLAB code for the IEEE paper with the topic "Comparative Analysis of YOLov2, Y
 
 ##
 [Click here](KF5042-Assessment-Brief.pdf) to view Assessment Brief.\
-[Click here](Assessment.pdf) to view Assessment.
+[Click here](Assessment.pdf) to view IEEE Paper.
