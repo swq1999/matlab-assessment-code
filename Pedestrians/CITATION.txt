@@ -1,0 +1,12 @@
+@misc{ pedestriansdetection_dataset,
+    title = { PedestriansDetection Dataset },
+    type = { Open Source Dataset },
+    author = { Victor Reg },
+    howpublished = { \url{ https://universe.roboflow.com/victor-reg/pedestriansdetection } },
+    url = { https://universe.roboflow.com/victor-reg/pedestriansdetection },
+    journal = { Roboflow Universe },
+    publisher = { Roboflow },
+    year = { 2022 },
+    month = { sep },
+    note = { visited on 2023-04-30 },
+}
