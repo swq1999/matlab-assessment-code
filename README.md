@@ -1,8 +1,8 @@
 # KF5042 - Intelligent Systems MATLAB code
-MATLAB code for the IEEE paper with the topic "Comparative Analysis of YOLov2, YOLOv3, and SSD for Human Detection in Surveillance Systems" as part of the Year 2 Intelligent Systems assessment at Northumbria University.
+MATLAB code for the IEEE paper as part of the Year 2 Intelligent Systems assessment at Northumbria University.
 
-## How to Train the Model
-- The "Pedestrains" folder is the dataset used for training and testing and should be inside the model folder (eg: v2Training) before running the main code.
+## How to Train/Test the Model
+- The "[Pedestrians](Pedestrians)" folder is the dataset used for training/testing and should be placed inside the model folder before running the main code. (eg: v2Training/Pedestrians)
 - The main code filename for each model is as follows:
 
     | Model | Filename |
