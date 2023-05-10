@@ -86,16 +86,16 @@ vel = [];
 
 % Train model
 if canUseParallelPool
-   dispatchInBackground = true;
+   dispatchInBg = true;
 else
-   dispatchInBackground = false;
+   dispatchInBg = false;
 end
 
 mbq = minibatchqueue(preprocessedData, 2,...
         "MiniBatchSize", batchSize,...
         "MiniBatchFcn", @(images, boxes, labels) createBatchData(images, boxes, labels, className), ...
         "MiniBatchFormat", ["SSCB", ""],...
-        "DispatchInBackground", dispatchInBackground,...
+        "DispatchInBackground", dispatchInBg,...
         "OutputCast", ["", "double"]);
 
 % TRAINING
@@ -103,39 +103,38 @@ mbq = minibatchqueue(preprocessedData, 2,...
     fig = figure;
     [lossPlotter, learningRatePlotter] = configureTrainingProgressPlotter(fig);
 
-    iteration = 0;
-    % Custom training loop.
-    for epoch = 1:epochs
+    iter = 0;
+    % my training loop.
+    for ep = 1:epochs
           
         reset(mbq);
         shuffle(mbq);
         
         while(hasdata(mbq))
-            iteration = iteration + 1;
+            iter = iter + 1;
            
-            [XTrain, YTrain] = next(mbq);
+            [xTrn, yTrn] = next(mbq);
             
-            % Evaluate the model gradients and loss using dlfeval and the
-            % modelGradients function.
-            [gradients, state, lossInfo] = dlfeval(@modelGradients, yolov3Detector, XTrain, YTrain, penaltyThres);
+            % Model gradients and loss
+            [grdnts, state, lInfo] = dlfeval(@modelGradients, yolov3Detector, xTrn, yTrn, penaltyThres);
     
-            % Apply L2 regularization.
-            gradients = dlupdate(@(g,w) g + l2*w, gradients, yolov3Detector.Learnables);
+            % L2 regularization
+            grdnts = dlupdate(@(g,w) g + l2*w, grdnts, yolov3Detector.Learnables);
     
-            % Determine the current learning rate value.
-            currentLR = piecewiseLearningRateWithWarmup(iteration, epoch, lRate, warmup, epochs);
+            % Current learning rate
+            CLR = piecewiseLearningRateWithWarmup(iter, ep, lRate, warmup, epochs);
     
-            % Update the detector learnable parameters using the SGDM optimizer.
-            [yolov3Detector.Learnables, vel] = sgdmupdate(yolov3Detector.Learnables, gradients, vel, currentLR);
+            % Update detector  parameters (SGDM)
+            [yolov3Detector.Learnables, vel] = sgdmupdate(yolov3Detector.Learnables, grdnts, vel, CLR);
     
-            % Update the state parameters of dlnetwork.
+            % Update state
             yolov3Detector.State = state;
               
             % Display progress.
-            displayLossInfo(epoch, iteration, currentLR, lossInfo);  
+            displayLossInfo(ep, iter, CLR, lInfo);  
                 
             % Update training plot with new points.
-            updatePlots(lossPlotter, learningRatePlotter, iteration, currentLR, lossInfo.totalLoss);
+            updatePlots(lossPlotter, learningRatePlotter, iter, CLR, lInfo.totalLoss);
         end        
     end
 
