@@ -24,65 +24,65 @@ ds = combine(imds,blds);
 % Validating data
 validateInputData(ds);
 
-% Data augmentation
-augmentedTrainingData = transform(ds, @augmentData);
+% Augmenting data 
+augmentedData = transform(ds, @augmentData);
 
 % Visualize the augmented images.
-augmentedData = cell(4,1);
+myAugmentedData = cell(4,1);
 for k = 1:4
-    data = read(augmentedTrainingData);
-    augmentedData{k} = insertShape(data{1,1}, 'Rectangle', data{1,2});
-    reset(augmentedTrainingData);
+    trainData = read(augmentedData);
+    myAugmentedData{k} = insertShape(trainData{1,1}, 'Rectangle', trainData{1,2});
+    reset(augmentedData);
 end
 figure
-montage(augmentedData, 'BorderSize', 10)
+montage(myAugmentedData, 'BorderSize', 10)
 
 % define network
-inputSize = [227 227 3];
+imgInputSize = [227 227 3];
 
 rng(0)
-trainingDataForEstimation = transform(ds, @(data)preprocessData(data, inputSize));
-numAnchors = 6;
-[anchors, meanIoU] = estimateAnchorBoxes(trainingDataForEstimation, numAnchors);
+DataEstimation = transform(ds, @(data)preprocessData(data, imgInputSize));
+numOfAnchors = 6;
+[anchors, meanIoU] = estimateAnchorBoxes(DataEstimation, numOfAnchors);
 
 % anchor boxes
-area = anchors(:, 1).*anchors(:, 2);
-[~, idx] = sort(area, 'descend');
+myArea = anchors(:, 1).*anchors(:, 2);
+[~, idx] = sort(myArea, 'descend');
 anchors = anchors(idx, :);
 anchorBoxes = {anchors(1:3,:)
     anchors(4:6,:)
     };
 
 % load base network
-baseNetwork = squeezenet;
-classNames  = {'person'};
+network = squeezenet;
+className  = {'person'};
 
 % Detector
-yolov3Detector = yolov3ObjectDetector(baseNetwork, classNames, anchorBoxes, ...
-    'DetectionNetworkSource', {'fire9-concat', 'fire5-concat'}, InputSize = inputSize);
+yolov3Detector = yolov3ObjectDetector(network, className, anchorBoxes, ...
+    'DetectionNetworkSource', {'fire9-concat', 'fire5-concat'}, InputSize = imgInputSize);
 
 % Preprocess training data
-preprocessedTrainingData = transform(augmentedTrainingData, @(data)preprocess(yolov3Detector, data));
-data = read(preprocessedTrainingData);
+preprocessedData = transform(augmentedData, @(data)preprocess(yolov3Detector, data));
+trainData = read(preprocessedData);
 
 % define img
-I = data{1,1};
-bbox = data{1,2};
-annotatedImage = insertShape(I, 'Rectangle', bbox);
-annotatedImage = imresize(annotatedImage,2);
+myImg = trainData{1,1};
+bbox = trainData{1,2};
+annotatedImg = insertShape(myImg, 'Rectangle', bbox);
+annotatedImg = imresize(annotatedImg,2);
 figure
-imshow(annotatedImage)
+imshow(annotatedImg)
 
-reset(preprocessedTrainingData);
+reset(preprocessedData);
 
 % Training options
-numEpochs = 20;
-miniBatchSize = 6;
-learningRate = 0.001;
-warmupPeriod = 700;
-l2Regularization = 0.0005;
-penaltyThreshold = 0.5;
-velocity = [];
+epochs = 20;
+batchSize = 6;
+lRate = 0.001;
+warmup = 700;
+l2 = 0.0005;
+penaltyThres = 0.5;
+vel = [];
 
 % Train model
 if canUseParallelPool
@@ -91,9 +91,9 @@ else
    dispatchInBackground = false;
 end
 
-mbqTrain = minibatchqueue(preprocessedTrainingData, 2,...
-        "MiniBatchSize", miniBatchSize,...
-        "MiniBatchFcn", @(images, boxes, labels) createBatchData(images, boxes, labels, classNames), ...
+mbq = minibatchqueue(preprocessedData, 2,...
+        "MiniBatchSize", batchSize,...
+        "MiniBatchFcn", @(images, boxes, labels) createBatchData(images, boxes, labels, className), ...
         "MiniBatchFormat", ["SSCB", ""],...
         "DispatchInBackground", dispatchInBackground,...
         "OutputCast", ["", "double"]);
@@ -105,28 +105,28 @@ mbqTrain = minibatchqueue(preprocessedTrainingData, 2,...
 
     iteration = 0;
     % Custom training loop.
-    for epoch = 1:numEpochs
+    for epoch = 1:epochs
           
-        reset(mbqTrain);
-        shuffle(mbqTrain);
+        reset(mbq);
+        shuffle(mbq);
         
-        while(hasdata(mbqTrain))
+        while(hasdata(mbq))
             iteration = iteration + 1;
            
-            [XTrain, YTrain] = next(mbqTrain);
+            [XTrain, YTrain] = next(mbq);
             
             % Evaluate the model gradients and loss using dlfeval and the
             % modelGradients function.
-            [gradients, state, lossInfo] = dlfeval(@modelGradients, yolov3Detector, XTrain, YTrain, penaltyThreshold);
+            [gradients, state, lossInfo] = dlfeval(@modelGradients, yolov3Detector, XTrain, YTrain, penaltyThres);
     
             % Apply L2 regularization.
-            gradients = dlupdate(@(g,w) g + l2Regularization*w, gradients, yolov3Detector.Learnables);
+            gradients = dlupdate(@(g,w) g + l2*w, gradients, yolov3Detector.Learnables);
     
             % Determine the current learning rate value.
-            currentLR = piecewiseLearningRateWithWarmup(iteration, epoch, learningRate, warmupPeriod, numEpochs);
+            currentLR = piecewiseLearningRateWithWarmup(iteration, epoch, lRate, warmup, epochs);
     
             % Update the detector learnable parameters using the SGDM optimizer.
-            [yolov3Detector.Learnables, velocity] = sgdmupdate(yolov3Detector.Learnables, gradients, velocity, currentLR);
+            [yolov3Detector.Learnables, vel] = sgdmupdate(yolov3Detector.Learnables, gradients, vel, currentLR);
     
             % Update the state parameters of dlnetwork.
             yolov3Detector.State = state;
@@ -141,12 +141,11 @@ mbqTrain = minibatchqueue(preprocessedTrainingData, 2,...
 
 %----------------------------------------- TESTING AN IMG -------------------------------------------
 
-I = imread('34.png');
-%I = imresize(I,inputSize(1:2));
-[person,scores] = detect(yolov3Detector,I, Threshold=0.1);
-I = insertObjectAnnotation(I,'rectangle',person,scores);
+myImg = imread('34.png');
+[person,scores] = detect(yolov3Detector,myImg, Threshold=0.1);
+myImg = insertObjectAnnotation(myImg,'rectangle',person,scores);
 figure
-imshow(I)
+imshow(myImg)
 
 %------------------------------- TESTING & EVALUATING METRICS -----------------------------------
 
@@ -166,7 +165,7 @@ results = detect(yolov3Detector,imds2,'MiniBatchSize',6, Threshold=0.01);
 
 % ------------------ Average Precision -----------------------------
 
-% Evaluate the object detector using Average Precision metric.
+% Evaluate AP
 [ap,recall,precision] = evaluateDetectionPrecision(results,blds2);
 
 figure

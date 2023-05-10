@@ -25,29 +25,29 @@ ds = combine(imds,blds);
 validateInputData(ds);
 
 % Read combined data
-data = read(ds);
-I = data{1};
-bbox = data{2};
-annotatedImage = insertShape(I,'rectangle',bbox);
-annotatedImage = imresize(annotatedImage,2);
+trainData = read(ds);
+I = trainData{1};
+bb = trainData{2};
+annImg = insertShape(I,'rectangle',bb);
+annImg = imresize(annImg,2);
 figure
-imshow(annotatedImage)
+imshow(annImg)
 
 %Creating SSD Object Detection Network
-inputSize = [300 300 3];
+imgInputSize = [300 300 3];
 
 %Number of object classes to detect
 classes = width(Dataset)-1;
 
 %SSD layer
-lgraph = ssdLayers(inputSize, classes, 'resnet50');
+lgraph = ssdLayers(imgInputSize, classes, 'resnet50');
 
 %Augment the training data
-augmentedTrainingData = transform(ds,@augmentData);
+augmentedData = transform(ds,@augmentData);
 
 %Preprocess the augmented training data to prepare for training
-preprocessedTrainingData = transform(augmentedTrainingData,@(data)preprocessData(data,inputSize));
-data = read(preprocessedTrainingData);
+preprocessedData = transform(augmentedData,@(data)preprocessData(data,imgInputSize));
+trainData = read(preprocessedData);
 
 % SSD Object Detector options
 options = trainingOptions('sgdm', ...
@@ -62,17 +62,17 @@ options = trainingOptions('sgdm', ...
     'Shuffle','every-epoch');
 
   % Training  SSD.
-  [detector, info] = trainSSDObjectDetector(preprocessedTrainingData,lgraph,options);
+  [ssdDetector, info] = trainSSDObjectDetector(preprocessedData,lgraph,options);
 
 
 %----------------------------------------- TESTING AN IMG -------------------------------------------
 
-I = imread('338.png');
-I = imresize(I,inputSize(1:2));
-[person,scores] = detect(detector,I, Threshold=0.3);
-I = insertObjectAnnotation(I,'rectangle',person,scores);
+myImg = imread('338.png');
+myImg = imresize(myImg,imgInputSize(1:2));
+[person,scores] = detect(ssdDetector,myImg, Threshold=0.3);
+myImg = insertObjectAnnotation(myImg,'rectangle',person,scores);
 figure
-imshow(I)
+imshow(myImg)
 
 %------------------------------- TESTING & EVALUATING METRICS -----------------------------------
 
@@ -88,11 +88,11 @@ imds2 = imageDatastore('Pedestrians\test');
 blds2 = boxLabelDatastore(Dataset2(:,'person'));
 
 % Run Trained Detector
-detectionResults = detect(detector, imds2,Threshold=0.1);
+testResults = detect(ssdDetector, imds2,Threshold=0.1);
 
 % ------------------ Average Precision -----------------------------
 
-[ap,recall,precision] = evaluateDetectionPrecision(detectionResults, blds2);
+[ap,recall,precision] = evaluateDetectionPrecision(testResults, blds2);
 
 figure
 plot(recall,precision)
@@ -108,7 +108,7 @@ y = precision;
 auc = trapz(x,y);
 
 % ---------------------- Log Average Miss Rate ---------------------------------
-[am, fppi, missRate] = evaluateDetectionMissRate(detectionResults, blds2);
+[am, fppi, missRate] = evaluateDetectionMissRate(testResults, blds2);
 
 figure;
 loglog(fppi, missRate);

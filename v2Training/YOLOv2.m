@@ -25,31 +25,31 @@ ds = combine(imds,blds);
 validateInputData(ds);
 
 % Minimum Input Size
-inputSize = [224 224 3];
-classes = width(Dataset)-1;
-trainingDataForEstimation = transform(ds,@(data)preprocessData(data,inputSize));
+ImgInputSize = [224 224 3];
+numOfClasses = width(Dataset)-1;
+estimationData = transform(ds,@(data)preprocessData(data,ImgInputSize));
 anchors = 7;
-[anchorBoxes, meanIoU] = estimateAnchorBoxes(trainingDataForEstimation, anchors);
-featureExtractionNetwork = resnet50;
-featureLayer = 'activation_40_relu';
-lgraph = yolov2Layers(inputSize,classes,anchorBoxes,featureExtractionNetwork,featureLayer);
-augmentedTrainingData = transform(ds,@augmentData);
+[anchorBoxes, meanIoU] = estimateAnchorBoxes(estimationData, anchors);
+fNetwork = resnet50;
+fLayer = 'activation_40_relu';
+lgraph = yolov2Layers(ImgInputSize,numOfClasses,anchorBoxes,fNetwork,fLayer);
+augmentedTrainData = transform(ds,@augmentData);
 
 % Augmenting & Visualizing Images
-augmentedData = cell(4,1);
+myAugmentedData = cell(4,1);
 for k = 1:4
-    data = read(augmentedTrainingData);
-    augmentedData{k} = insertShape(data{1},'rectangle',data{2});
-    reset(augmentedTrainingData);
+    trainData = read(augmentedTrainData);
+    myAugmentedData{k} = insertShape(trainData{1},'rectangle',trainData{2});
+    reset(augmentedTrainData);
 end
 
 figure
-montage(augmentedData,'BorderSize',10)
-preprocessedTrainingData = transform(augmentedTrainingData,@(data)preprocessData(data,inputSize));
-data = read(preprocessedTrainingData);
-I = data{1};
-bbox = data{2};
-annotatedImage = insertShape(I,'rectangle',bbox);
+montage(myAugmentedData,'BorderSize',10)
+preprocessedData = transform(augmentedTrainData,@(data)preprocessData(data,ImgInputSize));
+trainData = read(preprocessedData);
+myImg = trainData{1};
+mybbox = trainData{2};
+annotatedImage = insertShape(myImg,'rectangle',mybbox);
 annotatedImage = imresize(annotatedImage,2);
 figure
 imshow(annotatedImage)
@@ -61,16 +61,16 @@ options = trainingOptions('adam', ...
         'MaxEpochs',20);
   
   % Train YOLov2
-  [detector,info] = trainYOLOv2ObjectDetector(preprocessedTrainingData,lgraph,options);
+  [YOLOv2Detector,info] = trainYOLOv2ObjectDetector(preprocessedData,lgraph,options);
 
 %----------------------------------------- TESTING AN IMG -------------------------------------------
 
-I = imread('34.png');
-I = imresize(I,inputSize(1:2));
-[person,scores] = detect(detector,I, Threshold=0.6);
-I = insertObjectAnnotation(I,'rectangle',person,scores);
+myImg = imread('rider.jpg');
+myImg = imresize(myImg,ImgInputSize(1:2));
+[person,scores] = detect(YOLOv2Detector,myImg, Threshold=0.6);
+myImg = insertObjectAnnotation(myImg,'rectangle',person,scores);
 figure
-imshow(I)
+imshow(myImg)
 
 %------------------------------- TESTING & EVALUATING METRICS -----------------------------------
 
@@ -86,11 +86,11 @@ imds2 = imageDatastore('Pedestrians\test');
 blds2 = boxLabelDatastore(Dataset2(:,'person'));
 
 % Run Trained Detector
-detectionResults = detect(detector, imds2,Threshold=0.1);
+myDetectionResults = detect(YOLOv2Detector, imds2,Threshold=0.1);
 
 % ------------------ Average Precision -----------------------------
 
-[ap,recall,precision] = evaluateDetectionPrecision(detectionResults, blds2);
+[ap,recall,precision] = evaluateDetectionPrecision(myDetectionResults, blds2);
 
 figure
 plot(recall,precision)
@@ -107,7 +107,7 @@ auc = trapz(x,y);
 
 % ---------------------- Log Average Miss Rate ---------------------------------
 
-[am, fppi, missRate] = evaluateDetectionMissRate(detectionResults, blds2);
+[am, fppi, missRate] = evaluateDetectionMissRate(myDetectionResults, blds2);
 
 figure;
 loglog(fppi, missRate);
