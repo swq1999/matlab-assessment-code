@@ -10,6 +10,8 @@ MATLAB code for the IEEE paper as part of the Year 2 Intelligent Systems assessm
     | YOLOv2  | [YOLOv2.m](v2Training/YOLOv2.m) |
     | YOLOv3 | [v3.m](v3Training/v3.m) |
     | SSD  | [SSD.m](SSD/SSD.m) |
+    
+> **Note:** All supporting functions for the models are obtained from [MathWorks](https://uk.mathworks.com/) website and are needed for the models to function. 
 
 ##
 [Click here](KF5042-Assessment-Brief.pdf) to view Assessment Brief.\
